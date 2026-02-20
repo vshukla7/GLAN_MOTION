@@ -1,11 +1,8 @@
 export const MODELS = [
-  { id: "gpt-5.2:none", name: "GPT-5.2 (No Reasoning)" },
-  { id: "gpt-5.2:low", name: "GPT-5.2 (Low Reasoning)" },
-  { id: "gpt-5.2:medium", name: "GPT-5.2 (Medium Reasoning)" },
-  { id: "gpt-5.2:high", name: "GPT-5.2 (High Reasoning)" },
-  { id: "gpt-5.2-pro:medium", name: "GPT-5.2 Pro (Medium)" },
-  { id: "gpt-5.2-pro:high", name: "GPT-5.2 Pro (High)" },
-  { id: "gpt-5.2-pro:xhigh", name: "GPT-5.2 Pro (XHigh)" },
+  // Google Gemini (Only supported provider)
+  { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro" },
+  { id: "gemini-2.5-flash", name: "Glan m1 Mini" },
+  { id: "gemini-2.0-flash-001", name: "Gemini 2.0 Flash" },
 ] as const;
 
 export type ModelId = (typeof MODELS)[number]["id"];

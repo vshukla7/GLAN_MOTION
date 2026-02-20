@@ -26,20 +26,19 @@ export function TabPanel({
 
   return (
     <div className="flex flex-col h-full min-w-0">
-      <div className="inline-flex w-fit mb-4 shrink-0 rounded-lg overflow-hidden border border-border">
-        {tabs.map((tab, index) => (
+      <div className="inline-flex w-fit mb-6 p-1 bg-muted/30 shrink-0 rounded-xl border border-border/50">
+        {tabs.map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
             className={cn(
-              "flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors",
-              index > 0 && "border-l border-border",
+              "flex items-center gap-2.5 px-6 py-3 text-sm font-semibold rounded-lg transition-all duration-200",
               activeTab === tab.id
-                ? "bg-accent text-foreground"
-                : "bg-transparent text-muted-foreground hover:text-foreground hover:bg-accent/30"
+                ? "bg-background text-foreground shadow-sm"
+                : "bg-transparent text-muted-foreground hover:text-foreground hover:bg-background/20"
             )}
           >
-            <tab.icon className="w-4 h-4" />
+            <tab.icon className={cn("w-3.5 h-3.5", activeTab === tab.id ? "text-primary" : "text-muted-foreground")} />
             {tab.label}
           </button>
         ))}

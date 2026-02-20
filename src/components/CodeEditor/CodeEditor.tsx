@@ -147,13 +147,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
           feGaussianBlur: React.SVGAttributes<SVGFEGaussianBlurElement> & { stdDeviation?: number | string; result?: string };
           feMerge: React.SVGAttributes<SVGFEMergeElement>;
           feMergeNode: React.SVGAttributes<SVGFEMergeNodeElement> & { in?: string };
-          mesh: any;
-          group: any;
-          ambientLight: any;
-          pointLight: any;
-          sphereGeometry: any;
-          meshStandardMaterial: any;
-          planeGeometry: any;
+
           [elemName: string]: any;
         }
       }
@@ -212,33 +206,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
       "remotion-lottie.d.ts",
     );
 
-    ts?.typescriptDefaults?.addExtraLib(
-      `declare module '@remotion/three' {
-        export const ThreeCanvas: React.FC<{
-          children?: any;
-          style?: React.CSSProperties;
-          width?: number;
-          height?: number;
-          camera?: { position?: number[]; fov?: number; near?: number; far?: number; [key: string]: any };
-          orthographic?: boolean;
-          [key: string]: any;
-        }>;
-      }`,
-      "remotion-three.d.ts",
-    );
 
-    ts?.typescriptDefaults?.addExtraLib(
-      `declare module 'three' {
-        export class Vector3 { constructor(x?: number, y?: number, z?: number); x: number; y: number; z: number; }
-        export class Color { constructor(color?: string | number); }
-        export class MeshStandardMaterial { constructor(params?: any); }
-        export class BoxGeometry { constructor(width?: number, height?: number, depth?: number); }
-        export class SphereGeometry { constructor(radius?: number, widthSegments?: number, heightSegments?: number); }
-        export class Mesh { constructor(geometry?: any, material?: any); position: Vector3; rotation: Vector3; }
-        export const DoubleSide: number;
-      }`,
-      "three.d.ts",
-    );
 
     // Override marker setting to suppress during streaming
     const originalSetModelMarkers = monaco.editor.setModelMarkers;

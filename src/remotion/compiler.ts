@@ -12,8 +12,6 @@ import {
 } from "remotion";
 import * as RemotionShapes from "@remotion/shapes";
 import { Lottie } from "@remotion/lottie";
-import { ThreeCanvas } from "@remotion/three";
-import * as THREE from "three";
 import {
   TransitionSeries,
   linearTiming,
@@ -113,8 +111,6 @@ export function compileCode(code: string): CompilationResult {
       "Remotion",
       "RemotionShapes",
       "Lottie",
-      "ThreeCanvas",
-      "THREE",
       "AbsoluteFill",
       "interpolate",
       "useCurrentFrame",
@@ -159,8 +155,6 @@ export function compileCode(code: string): CompilationResult {
       Remotion,
       RemotionShapes,
       Lottie,
-      ThreeCanvas,
-      THREE,
       AbsoluteFill,
       interpolate,
       useCurrentFrame,

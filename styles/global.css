@@ -53,12 +53,27 @@
   --radius-geist: var(--geist-border-radius);
   --font-geist: var(--geist-font);
   --animate-spinner: spinner 1.2s linear infinite;
-  --animate-spin: spin 1s linear infinite;
+  --animate-fade-in-down: fade-in-down 0.8s ease-out forwards;
+  --animate-fade-in-up: fade-in-up 0.8s ease-out forwards;
+  --animate-sand-forming: sand-forming 2s cubic-bezier(0.075, 0.82, 0.165, 1) forwards;
+  --animate-glow-rise: glow-rise 1.5s ease-out forwards;
+  --animate-spin-reverse: spin-reverse 1.5s linear infinite;
+
+  @keyframes spin-reverse {
+    from {
+      transform: rotate(0deg);
+    }
+
+    to {
+      transform: rotate(-360deg);
+    }
+  }
 
   @keyframes spinner {
     0% {
       opacity: 1;
     }
+
     100% {
       opacity: 0.15;
     }
@@ -69,6 +84,82 @@
       transform: rotate(360deg);
     }
   }
+
+  @keyframes fade-in-down {
+    0% {
+      opacity: 0;
+      transform: translateY(-20px);
+    }
+
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes fade-in-up {
+    0% {
+      opacity: 0;
+      transform: translateY(40px);
+    }
+
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes glow-rise {
+    0% {
+      opacity: 0;
+      transform: translateY(100px) scale(0.8);
+    }
+
+    100% {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  @keyframes sand-forming {
+    0% {
+      opacity: 0;
+      filter: blur(12px) brightness(2.5);
+      letter-spacing: 0.8em;
+      transform: scale(1.15) translateY(10px);
+    }
+
+    100% {
+      opacity: 1;
+      filter: blur(0) brightness(1);
+      letter-spacing: normal;
+      transform: scale(1) translateY(0);
+    }
+  }
+}
+
+/* Ensure animations play once and stick, applying 0% state immediately */
+.animate-fade-in-down,
+.animate-fade-in-up,
+.animate-sand-forming,
+.animate-glow-rise {
+  animation-fill-mode: both !important;
+}
+
+.delay-nav {
+  animation-delay: 0s;
+}
+
+.delay-glow {
+  animation-delay: 0.6s;
+}
+
+.delay-input {
+  animation-delay: 1.2s;
+}
+
+.delay-text {
+  animation-delay: 2s;
 }
 
 body {
@@ -110,6 +201,7 @@ body {
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
   }

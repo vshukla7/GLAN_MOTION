@@ -29,12 +29,12 @@ export function ChatHistory({
   }, [messages]);
 
   return (
-    <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-6">
+    <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-4 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden transition-all">
       {messages.map((message) => (
         <ChatMessage key={message.id} message={message} />
       ))}
       {pendingMessage && <PendingMessage skills={pendingMessage.skills} />}
-      <div ref={messagesEndRef} />
+      <div ref={messagesEndRef} className="h-0" />
     </div>
   );
 }
@@ -44,29 +44,25 @@ function ChatMessage({ message }: { message: ConversationMessage }) {
   const isError = message.role === "error";
   const metadata = message.metadata;
 
-  const time = new Date(message.timestamp).toLocaleTimeString([], {
-    hour: "numeric",
-    minute: "2-digit",
-  });
+
 
   if (isUser) {
     return (
-      <div className="space-y-1">
+      <div className="flex flex-col items-end space-y-1">
         <div className="flex items-center gap-2">
-          <span className="text-xs font-medium text-muted-foreground">You</span>
-          <span className="text-xs text-muted-foreground-dim">{time}</span>
+          <span className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground/70">You</span>
         </div>
-        <div className="text-sm text-foreground leading-relaxed bg-secondary/50 rounded-lg px-3 py-2">
+        <div className="text-[13px] text-foreground leading-relaxed bg-primary/10 border border-primary/20 rounded-xl rounded-tr-none px-4 py-2.5 shadow-sm max-w-[95%]">
           {message.content}
           {message.attachedImages && message.attachedImages.length > 0 && (
-            <div className="flex gap-2 mt-2 overflow-x-auto">
+            <div className="flex gap-2 mt-3 overflow-x-auto pb-1">
               {message.attachedImages.map((img, index) => (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   key={index}
                   src={img}
                   alt={`Attached ${index + 1}`}
-                  className="h-20 w-auto rounded border border-border object-cover flex-shrink-0"
+                  className="h-24 w-auto rounded-lg border border-border/50 object-cover flex-shrink-0 shadow-sm"
                 />
               ))}
             </div>
@@ -85,12 +81,12 @@ function ChatMessage({ message }: { message: ConversationMessage }) {
           : "Edit Failed";
 
     return (
-      <div className="space-y-2">
-        <div className="flex items-center gap-2 text-red-400">
+      <div className="space-y-1.5 bg-red-400/5 border border-red-400/20 rounded-xl px-4 py-2.5 shadow-sm shadow-red-500/5">
+        <div className="flex items-center gap-2 text-red-400/90 font-semibold tracking-wide">
           <AlertTriangle className="w-4 h-4" />
-          <span className="text-xs font-medium">{errorLabel}</span>
+          <span className="text-[10px] uppercase">{errorLabel}</span>
         </div>
-        <div className="text-xs text-red-300/80 leading-relaxed pl-6">
+        <div className="text-sm text-red-300/80 leading-relaxed">
           {message.content}
         </div>
       </div>
@@ -99,18 +95,17 @@ function ChatMessage({ message }: { message: ConversationMessage }) {
 
   // Assistant message
   return (
-    <div className="space-y-1">
-      <div className="flex items-center gap-2">
-        <span className="text-xs font-medium text-blue-400">Assistant</span>
-        <span className="text-xs text-muted-foreground-dim">{time}</span>
+    <div className="flex flex-col items-start space-y-1">
+      <div className="flex items-center gap-2 mb-1">
+        <span className="text-[10px] uppercase tracking-wider font-bold text-primary">Assistant</span>
       </div>
 
-      <div className="text-sm text-foreground leading-relaxed">
+      <div className="text-[13px] text-foreground leading-relaxed bg-muted/15 border border-border/40 rounded-xl rounded-tl-none px-4 py-2.5 shadow-sm max-w-[95%]">
         {message.content}
         {metadata?.skills && metadata.skills.length > 0 && (
           <Tooltip>
             <TooltipTrigger asChild>
-              <span className="inline-flex ml-1.5 align-middle cursor-help">
+              <span className="inline-flex ml-2 align-middle cursor-help">
                 <BookOpen className="w-3.5 h-3.5 text-muted-foreground" />
               </span>
             </TooltipTrigger>

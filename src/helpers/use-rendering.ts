@@ -1,105 +1,88 @@
-import { z } from "zod";
 import { useCallback, useMemo, useState } from "react";
-import { getProgress, renderVideo } from "../lambda/api";
-import { CompositionProps } from "../../types/constants";
+import { renderMediaOnWeb } from "@remotion/web-renderer";
 
 export type State =
   | {
-      status: "init";
-    }
+    status: "init";
+  }
   | {
-      status: "invoking";
-    }
+    status: "invoking";
+  }
   | {
-      renderId: string;
-      bucketName: string;
-      progress: number;
-      status: "rendering";
-    }
+    progress: number;
+    status: "rendering";
+  }
   | {
-      renderId: string | null;
-      status: "error";
-      error: Error;
-    }
+    status: "error";
+    error: Error;
+  }
   | {
-      url: string;
-      size: number;
-      status: "done";
-    };
+    url: string;
+    size: number;
+    status: "done";
+  };
 
-const wait = async (milliSeconds: number) => {
-  await new Promise<void>((resolve) => {
-    setTimeout(() => {
-      resolve();
-    }, milliSeconds);
-  });
-};
-
-export const useRendering = (
-  inputProps: z.infer<typeof CompositionProps>,
-) => {
+export const useRendering = ({
+  durationInFrames,
+  fps,
+  Component,
+}: {
+  code: string;
+  durationInFrames: number;
+  fps: number;
+  Component: React.ComponentType | null;
+}) => {
   const [state, setState] = useState<State>({
     status: "init",
   });
 
   const renderMedia = useCallback(async () => {
+    if (!Component) {
+      setState({
+        status: "error",
+        error: new Error("Component is not ready yet"),
+      });
+      return;
+    }
+
     setState({
       status: "invoking",
     });
+
     try {
-      const { renderId, bucketName } = await renderVideo({ inputProps });
-      setState({
-        status: "rendering",
-        progress: 0,
-        renderId: renderId,
-        bucketName: bucketName,
+      const result = await renderMediaOnWeb({
+        composition: {
+          id: "animation",
+          component: Component,
+          durationInFrames,
+          fps,
+          width: 1920,
+          height: 1080,
+        },
+        onProgress: ({ renderedFrames }) => {
+          setState({
+            status: "rendering",
+            progress: renderedFrames / durationInFrames,
+          });
+        },
       });
 
-      let pending = true;
+      const blob = await result.getBlob();
+      const url = URL.createObjectURL(blob);
 
-      while (pending) {
-        const result = await getProgress({
-          id: renderId,
-          bucketName: bucketName,
-        });
-        switch (result.type) {
-          case "error": {
-            setState({
-              status: "error",
-              renderId: renderId,
-              error: new Error(result.message),
-            });
-            pending = false;
-            break;
-          }
-          case "done": {
-            setState({
-              size: result.size,
-              url: result.url,
-              status: "done",
-            });
-            pending = false;
-            break;
-          }
-          case "progress": {
-            setState({
-              status: "rendering",
-              bucketName: bucketName,
-              progress: result.progress,
-              renderId: renderId,
-            });
-            await wait(1000);
-          }
-        }
-      }
+      setState({
+        url,
+        size: blob.size,
+        status: "done",
+      });
     } catch (err) {
+      console.error("Render failed:", err);
       setState({
         status: "error",
         error: err as Error,
-        renderId: null,
       });
     }
-  }, [inputProps]);
+  }, [Component, durationInFrames, fps]);
 
   const undo = useCallback(() => {
     setState({ status: "init" });

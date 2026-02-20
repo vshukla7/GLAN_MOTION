@@ -8,8 +8,6 @@ import {
   useEffect,
   type ComponentType,
 } from "react";
-import { PanelLeftClose, PanelLeftOpen, RotateCcw } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type {
   ConversationMessage,
@@ -22,16 +20,17 @@ import {
   type StreamPhase,
   type GenerationErrorType,
   type ModelId,
-  MODELS,
 } from "@/types/generation";
 import { ChatInput } from "./ChatInput";
 import { ChatHistory } from "./ChatHistory";
 import { useGenerationApi } from "@/hooks/useGenerationApi";
+import { type SkillName } from "@/skills";
 
 export interface ChatSidebarRef {
   triggerGeneration: (options?: {
     silent?: boolean;
     attachedImages?: string[];
+    selectedSkills?: SkillName[];
   }) => void;
 }
 
@@ -41,8 +40,6 @@ interface ChatSidebarProps {
     skills?: string[];
     startedAt: number;
   };
-  isCollapsed: boolean;
-  onToggleCollapse: () => void;
   hasManualEdits: boolean;
   // Generation callbacks
   onCodeGenerated?: (code: string) => void;
@@ -77,6 +74,7 @@ interface ChatSidebarProps {
   fps?: number;
   durationInFrames?: number;
   currentFrame?: number;
+  initialModel?: ModelId;
 }
 
 export const ChatSidebar = forwardRef<ChatSidebarRef, ChatSidebarProps>(
@@ -84,8 +82,6 @@ export const ChatSidebar = forwardRef<ChatSidebarRef, ChatSidebarProps>(
     {
       messages,
       pendingMessage,
-      isCollapsed,
-      onToggleCollapse,
       hasManualEdits,
       onCodeGenerated,
       onStreamingChange,
@@ -107,10 +103,12 @@ export const ChatSidebar = forwardRef<ChatSidebarRef, ChatSidebarProps>(
       fps = 30,
       durationInFrames = 150,
       currentFrame = 0,
+      initialModel,
     },
     ref,
   ) {
-    const [model, setModel] = useState<ModelId>(MODELS[1].id);
+    const [model, setModel] = useState<ModelId>(initialModel || "gemini-2.5-flash");
+    const [selectedSkills, setSelectedSkills] = useState<SkillName[]>([]);
     const promptRef = useRef<string>("");
 
     const { isLoading, runGeneration } = useGenerationApi();
@@ -123,11 +121,15 @@ export const ChatSidebar = forwardRef<ChatSidebarRef, ChatSidebarProps>(
     const handleGeneration = async (options?: {
       silent?: boolean;
       attachedImages?: string[];
+      selectedSkills?: SkillName[];
     }) => {
       const currentPrompt = promptRef.current;
       if (!currentPrompt.trim()) return;
 
+      const skillsToUse = options?.selectedSkills || selectedSkills;
+
       onPromptChange(""); // Clear input immediately
+      setSelectedSkills([]); // Clear selected skills
 
       await runGeneration(
         currentPrompt,
@@ -140,6 +142,7 @@ export const ChatSidebar = forwardRef<ChatSidebarRef, ChatSidebarProps>(
           hasManualEdits,
           errorCorrection,
           frameImages: options?.attachedImages,
+          selectedSkills: skillsToUse,
         },
         {
           onCodeGenerated,
@@ -165,83 +168,42 @@ export const ChatSidebar = forwardRef<ChatSidebarRef, ChatSidebarProps>(
       <div
         className={cn(
           "flex flex-col bg-background transition-all duration-300",
-          isCollapsed
-            ? "w-12 shrink-0"
-            : "w-full h-[40vh] min-[1000px]:h-auto min-[1000px]:w-[40%] min-[1000px]:min-w-[320px] min-[1000px]:max-w-[520px] shrink",
+          "w-full h-[45vh] min-[1000px]:h-full min-[1000px]:w-[35%] min-[1000px]:min-w-[420px] min-[1000px]:max-w-[550px] shrink-0 overflow-hidden",
         )}
       >
-        {isCollapsed ? (
-          <div className="flex justify-center px-4 mb-3">
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              onClick={onToggleCollapse}
-              className="text-muted-foreground hover:text-foreground"
-            >
-              <PanelLeftOpen className="w-4 h-4" />
-            </Button>
+        {/* Chat area with subtle backdrop */}
+        <div className="flex-1 flex flex-col min-h-0 mb-0 rounded-2xl rounded-b-none bg-background-elevated/40 border border-border/50 border-b-0 shadow-lg backdrop-blur-md overflow-hidden relative">
+          {/* Header */}
+          <div className="flex items-start justify-between px-4 pt-4 pb-2">
+            <h2 className="text-sm font-semibold tracking-wide text-muted-foreground uppercase">
+              Let's create something amazing!
+            </h2>
           </div>
-        ) : (
-          /* Chat area with subtle backdrop */
-          <div className="flex-1 flex flex-col min-h-0 ml-12 mr-8 mb-8 rounded-xl bg-muted/20 border border-border/30 shadow-sm">
-            {/* Header */}
-            <div className="flex items-start justify-between px-4 pt-4 pb-2">
-              <h2 className="text-sm font-medium text-muted-foreground">
-                Assistant Chat
-              </h2>
-              <div className="flex items-center gap-1 -mt-1">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    if (
-                      window.confirm(
-                        "Start over? This will reset your animation.",
-                      )
-                    ) {
-                      window.location.href = "/";
-                    }
-                  }}
-                  title="Start over"
-                  className="text-muted-foreground hover:text-foreground text-xs gap-1 h-7 px-2"
-                >
-                  <RotateCcw className="w-3 h-3" />
-                  Reset
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  onClick={onToggleCollapse}
-                  className="text-muted-foreground hover:text-foreground"
-                >
-                  <PanelLeftClose className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
 
-            {/* Messages */}
-            <ChatHistory
-              messages={messages}
-              pendingMessage={pendingMessage}
-            />
+          {/* Messages */}
+          <ChatHistory
+            messages={messages}
+            pendingMessage={pendingMessage}
+          />
 
-            {/* Input */}
-            <ChatInput
-              prompt={prompt}
-              onPromptChange={onPromptChange}
-              model={model}
-              onModelChange={setModel}
-              isLoading={isLoading}
-              onSubmit={(attachedImages) =>
-                handleGeneration({ attachedImages })
-              }
-              Component={Component}
-              fps={fps}
-              durationInFrames={durationInFrames}
-              currentFrame={currentFrame}
-            />
-          </div>
-        )}
+          {/* Input */}
+          <ChatInput
+            prompt={prompt}
+            onPromptChange={onPromptChange}
+            model={model}
+            onModelChange={setModel}
+            isLoading={isLoading}
+            onSubmit={(attachedImages, selectedSkills) =>
+              handleGeneration({ attachedImages, selectedSkills })
+            }
+            selectedSkills={selectedSkills}
+            onSkillsChange={setSelectedSkills}
+            Component={Component}
+            fps={fps}
+            durationInFrames={durationInFrames}
+            currentFrame={currentFrame}
+          />
+        </div>
       </div>
     );
   },

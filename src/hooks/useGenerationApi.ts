@@ -10,6 +10,7 @@ import {
   extractComponentCode,
   stripMarkdownFences,
 } from "@/helpers/sanitize-response";
+import { type SkillName } from "@/skills";
 
 interface FailedEditInfo {
   description: string;
@@ -45,6 +46,7 @@ interface GenerationContext {
   hasManualEdits: boolean;
   errorCorrection?: ErrorCorrectionContext;
   frameImages?: string[];
+  selectedSkills?: SkillName[];
 }
 
 interface UseGenerationApiReturn {
@@ -79,6 +81,7 @@ export function useGenerationApi(): UseGenerationApiReturn {
         hasManualEdits,
         errorCorrection,
         frameImages,
+        selectedSkills,
       } = context;
 
       const {
@@ -116,6 +119,7 @@ export function useGenerationApi(): UseGenerationApiReturn {
             hasManualEdits,
             errorCorrection,
             frameImages,
+            selectedSkills,
           }),
         });
 

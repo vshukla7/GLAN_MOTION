@@ -91,10 +91,13 @@ export const AnimationPlayer: React.FC<AnimationPlayerProps> = ({
   const renderContent = () => {
     if (isStreaming) {
       return (
-        <div className="w-full aspect-video max-h-[calc(100%-80px)] flex flex-col justify-center items-center gap-4 bg-background-elevated rounded-lg overflow-hidden shadow-[0_0_60px_rgba(0,0,0,0.5)]">
-          <div className="w-12 h-12 border-4 border-border border-t-primary rounded-full animate-spin" />
-          <p className="text-muted-foreground text-sm">
-            Waiting for code generation to finish...
+        <div className="w-full aspect-video max-h-[calc(100%-100px)] flex flex-col justify-center items-center gap-6 bg-background-elevated/60 backdrop-blur-xl border border-border/50 rounded-2xl overflow-hidden shadow-[0_30px_100px_rgba(0,0,0,0.6)]">
+          <div className="relative">
+            <div className="w-16 h-16 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
+            <div className="absolute inset-0 w-16 h-16 border-4 border-transparent border-b-primary/40 rounded-full animate-spin-reverse" />
+          </div>
+          <p className="text-muted-foreground font-medium text-base animate-pulse">
+            Waiting for a Magic...
           </p>
         </div>
       );
@@ -129,7 +132,7 @@ export const AnimationPlayer: React.FC<AnimationPlayerProps> = ({
 
     return (
       <>
-        <div className="w-full aspect-video max-h-[calc(100%-80px)] rounded-lg overflow-hidden shadow-[0_0_60px_rgba(0,0,0,0.5)]">
+        <div className="w-full aspect-video max-h-[calc(100%-100px)] rounded-2xl overflow-hidden border border-border/50 shadow-[0_30px_100px_rgba(0,0,0,0.6)]">
           <Player
             ref={playerRef}
             key={Component.toString()}
@@ -152,7 +155,7 @@ export const AnimationPlayer: React.FC<AnimationPlayerProps> = ({
           />
         </div>
         <div className="flex items-center justify-between gap-6 mt-4">
-          <RenderControls code={code} durationInFrames={durationInFrames} fps={fps} />
+          <RenderControls code={code} durationInFrames={durationInFrames} fps={fps} Component={Component} />
           <SettingsModal
             durationInFrames={durationInFrames}
             onDurationChange={onDurationChange}

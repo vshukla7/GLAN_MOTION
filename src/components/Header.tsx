@@ -9,14 +9,14 @@ export function Header({ asLink = false }: HeaderProps) {
   const content = (
     <div className="flex items-center gap-3">
       <img
-        src="/logo-white.svg"
-        alt="Remotion"
+        src="/Logo.png"
+        alt="Glan motion"
         style={{
-          width: 32,
+          width: 40,
         }}
       />
-      <span className="text-xl font-bold text-white font-sans">
-        Remotion - Prompt to Motion Graphics
+      <span className="text-lg font-medium text-white font-poppins">
+        Glan Motion
       </span>
     </div>
   );

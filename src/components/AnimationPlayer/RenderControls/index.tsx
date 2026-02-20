@@ -12,11 +12,13 @@ export const RenderControls: React.FC<{
   code: string;
   durationInFrames: number;
   fps: number;
-}> = ({ code, durationInFrames, fps }) => {
+  Component: React.ComponentType | null;
+}> = ({ code, durationInFrames, fps, Component }) => {
   const { renderMedia, state, undo } = useRendering({
     code,
     durationInFrames,
     fps,
+    Component,
   });
   const previousPropsRef = useRef({ code, durationInFrames, fps });
 

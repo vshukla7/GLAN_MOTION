@@ -3,7 +3,7 @@ import { histogramExample } from "./histogram";
 import { progressBarExample } from "./progress-bar";
 import { animatedShapesExample } from "./animated-shapes";
 import { lottieAnimationExample } from "./lottie-animation";
-import { fallingSpheresExample } from "./falling-spheres";
+
 import { goldPriceChartExample } from "./gold-price-chart";
 import { typewriterHighlightExample } from "./typewriter-highlight";
 import { wordCarouselExample } from "./word-carousel";
@@ -15,7 +15,7 @@ export interface RemotionExample {
   code: string;
   durationInFrames: number;
   fps: number;
-  category: "Text" | "Charts" | "Animation" | "3D" | "Other";
+  category: "Text" | "Charts" | "Animation" | "Other";
 }
 
 export const examples: RemotionExample[] = [
@@ -24,7 +24,7 @@ export const examples: RemotionExample[] = [
   progressBarExample,
   animatedShapesExample,
   lottieAnimationExample,
-  fallingSpheresExample,
+
   goldPriceChartExample,
   typewriterHighlightExample,
   wordCarouselExample,

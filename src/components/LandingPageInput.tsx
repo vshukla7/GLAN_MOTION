@@ -1,17 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Link from "next/link";
 import {
   ArrowUp,
-  SquareArrowOutUpRight,
   Type,
   MessageCircle,
   Hash,
   BarChart3,
   Disc,
   X,
-  Paperclip,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -26,6 +23,8 @@ import { ErrorDisplay } from "@/components/ErrorDisplay";
 import { examplePrompts } from "@/examples/prompts";
 import { type ModelId, MODELS } from "@/types/generation";
 import { useImageAttachments } from "@/hooks/useImageAttachments";
+import { SkillSelector } from "@/components/ChatSidebar/SkillSelector";
+import { type SkillName } from "@/skills";
 
 const iconMap: Record<string, LucideIcon> = {
   Type,
@@ -36,7 +35,7 @@ const iconMap: Record<string, LucideIcon> = {
 };
 
 interface LandingPageInputProps {
-  onNavigate: (prompt: string, model: ModelId, attachedImages?: string[]) => void;
+  onNavigate: (prompt: string, model: ModelId, attachedImages?: string[], selectedSkills?: SkillName[]) => void;
   isNavigating?: boolean;
   showCodeExamplesLink?: boolean;
 }
@@ -47,18 +46,16 @@ export function LandingPageInput({
   showCodeExamplesLink = false,
 }: LandingPageInputProps) {
   const [prompt, setPrompt] = useState("");
-  const [model, setModel] = useState<ModelId>("gpt-5.2:low");
+  const [model, setModel] = useState<ModelId>("gemini-2.5-flash");
+  const [selectedSkills, setSelectedSkills] = useState<SkillName[]>([]);
   const {
     attachedImages,
     isDragging,
-    fileInputRef,
     removeImage,
-    handleFileSelect,
     handlePaste,
     handleDragOver,
     handleDragLeave,
     handleDrop,
-    canAddMore,
     error,
     clearError,
   } = useImageAttachments();
@@ -74,7 +71,12 @@ export function LandingPageInput({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!prompt.trim() || isNavigating) return;
-    onNavigate(prompt, model, attachedImages.length > 0 ? attachedImages : undefined);
+    onNavigate(
+      prompt,
+      model,
+      attachedImages.length > 0 ? attachedImages : undefined,
+      selectedSkills.length > 0 ? selectedSkills : undefined
+    );
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -86,16 +88,23 @@ export function LandingPageInput({
   };
 
   return (
-    <div className="flex flex-col items-center justify-center flex-1 px-4">
-      <h1 className="text-5xl font-bold text-white mb-10 text-center">
-        What do you want to create?
+    <div className="flex flex-col items-center justify-start pt-[12vh] md:pt-[18vh] min-h-screen w-full px-4 relative z-10">
+      <h1
+        key="landing-title"
+        className="text-3xl md:text-4xl font-black text-white mb-16 text-center tracking-tight animate-sand-forming delay-text"
+        style={{ textShadow: "0 0 40px rgba(255,255,255,0.3)" }}
+      >
+        Let's animate the ordinary
       </h1>
 
-      <form onSubmit={handleSubmit} className="w-full max-w-3xl">
+      <form
+        key="landing-form"
+        onSubmit={handleSubmit}
+        className="w-full max-w-4xl animate-fade-in-up delay-input"
+      >
         <div
-          className={`bg-background-elevated rounded-xl border p-4 transition-colors ${
-            isDragging ? "border-blue-500 bg-blue-500/10" : "border-border"
-          }`}
+          className={`bg-background-elevated rounded-xl border p-4 transition-colors ${isDragging ? "border-blue-500 bg-blue-500/10" : "border-border"
+            }`}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
@@ -145,50 +154,39 @@ export function LandingPageInput({
             disabled={isNavigating}
           />
 
-          {/* Hidden file input */}
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            multiple
-            onChange={handleFileSelect}
-            className="hidden"
-          />
+
 
           <div className="flex justify-between items-center mt-3 pt-3 border-t border-border">
-            <Select
-              value={model}
-              onValueChange={(value) => setModel(value as ModelId)}
-              disabled={isNavigating}
-            >
-              <SelectTrigger className="w-auto bg-transparent border-none text-muted-foreground hover:text-foreground transition-colors">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="bg-background-elevated border-border">
-                {MODELS.map((m) => (
-                  <SelectItem
-                    key={m.id}
-                    value={m.id}
-                    className="text-foreground focus:bg-secondary focus:text-foreground"
-                  >
-                    {m.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="flex items-center gap-2">
+              <Select
+                value={model}
+                onValueChange={(value) => setModel(value as ModelId)}
+                disabled={isNavigating}
+              >
+                <SelectTrigger className="w-auto bg-transparent border-none text-muted-foreground hover:text-foreground transition-colors">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-background-elevated border-border">
+                  {MODELS.map((m) => (
+                    <SelectItem
+                      key={m.id}
+                      value={m.id}
+                      className="text-foreground focus:bg-secondary focus:text-foreground"
+                    >
+                      {m.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <SkillSelector
+                selectedSkills={selectedSkills}
+                onSkillsChange={setSelectedSkills}
+                disabled={isNavigating}
+              />
+            </div>
 
             <div className="flex items-center gap-1">
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isNavigating || !canAddMore}
-                className="text-muted-foreground hover:text-foreground"
-                title="Attach images"
-              >
-                <Paperclip className="w-5 h-5" />
-              </Button>
+
 
               <Button
                 type="submit"
@@ -226,18 +224,6 @@ export function LandingPageInput({
             );
           })}
         </div>
-
-        {showCodeExamplesLink && (
-          <div className="flex justify-center mt-4">
-            <Link
-              href="/code-examples"
-              className="text-muted-foreground-dim hover:text-muted-foreground text-xs transition-colors flex items-center gap-1"
-            >
-              View Code examples
-              <SquareArrowOutUpRight className="w-3 h-3" />
-            </Link>
-          </div>
-        )}
       </form>
     </div>
   );

@@ -79,7 +79,7 @@ function DemoPageContent() {
       {/* Header with logo */}
       <header className="flex items-center gap-6 py-8 px-12 shrink-0">
         <div className="flex flex-col gap-2">
-          <Header asLink />
+          <Header asLink />Glan Motion
           <Link
             href="/"
             className="flex items-center gap-1.5 text-xs text-muted-foreground-dim hover:text-foreground transition-colors"

@@ -1,40 +1,10 @@
-import { streamText, generateObject } from "ai";
-import { createOpenAI } from "@ai-sdk/openai";
+import { streamText, generateObject, type LanguageModel } from "ai";
+import { google } from "@ai-sdk/google";
 import { z } from "zod";
 import {
   getCombinedSkillContent,
-  SKILL_DETECTION_PROMPT,
-  SKILL_NAMES,
   type SkillName,
 } from "@/skills";
-
-const VALIDATION_PROMPT = `You are a prompt classifier for a motion graphics generation tool.
-
-Determine if the user's prompt is asking for motion graphics/animation content that can be created as a React/Remotion component.
-
-VALID prompts include requests for:
-- Animated text, titles, or typography
-- Data visualizations (charts, graphs, progress bars)
-- UI animations (buttons, cards, transitions)
-- Logo animations or brand intros
-- Social media content (stories, reels, posts)
-- Explainer animations
-- Kinetic typography
-- Abstract motion graphics
-- Animated illustrations
-- Product showcases
-- Countdown timers
-- Loading animations
-- Any visual/animated content
-
-INVALID prompts include:
-- Questions (e.g., "What is 2+2?", "How do I...")
-- Requests for text/written content (poems, essays, stories, code explanations)
-- Conversations or chat
-- Non-visual tasks (calculations, translations, summaries)
-- Requests completely unrelated to visual content
-
-Return true if the prompt is valid for motion graphics generation, false otherwise.`;
 
 const SYSTEM_PROMPT = `
 You are an expert in generating React components for Remotion animations.
@@ -68,22 +38,45 @@ This allows users to easily customize the animation.
 
 ## ANIMATION RULES
 
-- Prefer spring() for organic motion (entrances, bounces, scaling)
+- ALWAYS define const { fps } = useVideoConfig() before using spring()
+- Prefer spring() for organic motion: spring({ frame, fps, config: { damping: 12 } })
 - Use interpolate() for linear progress (progress bars, opacity fades)
 - Always use { extrapolateLeft: "clamp", extrapolateRight: "clamp" }
 - Add stagger delays for multiple elements
 
+## CRITICAL REMOTION GOTCHAS (AVOID THESE MISTAKES)
+
+1. **Interpolate Output Range**: 
+   - ALWAYS use ONLY numbers in outputRange for interpolate().
+   - NEVER use strings with units like "10px" inside interpolate().
+   - CORRECT: \`fontSize: interpolate(frame, [0, 10], [12, 24])\`
+   - CORRECT WITH UNITS: \`width: \${interpolate(frame, [0, 10], [0, 100])}%\`
+   - INCORRECT: \`width: interpolate(frame, [0, 10], ["0%", "100%"])\` (Throws error)
+
+2. **Color Interpolation**:
+   - Use interpolateColors() for all color transitions.
+   - CORRECT: \`backgroundColor: interpolateColors(frame, [0, 20], ["#ff0000", "#0000ff"])\`
+
+3. **Spring Configuration**:
+   - Always provide a config object to spring().
+   - Use damping between 10-20, stiffness between 100-200.
+
 ## AVAILABLE IMPORTS
 
 \`\`\`tsx
-import { useCurrentFrame, useVideoConfig, AbsoluteFill, interpolate, spring, Sequence } from "remotion";
+import { useCurrentFrame, useVideoConfig, AbsoluteFill, interpolate, interpolateColors, spring, Sequence } from "remotion";
 import { TransitionSeries, linearTiming, springTiming } from "@remotion/transitions";
 import { fade } from "@remotion/transitions/fade";
 import { slide } from "@remotion/transitions/slide";
 import { Circle, Rect, Triangle, Star, Ellipse, Pie } from "@remotion/shapes";
-import { ThreeCanvas } from "@remotion/three";
 import { useState, useEffect } from "react";
 \`\`\`
+
+## FOCUS: TEXT, SHAPES & IMAGES ONLY
+- Use text animations (typography, kinetic text)
+- Use shapes from @remotion/shapes (Circle, Rect, Triangle, Star, Ellipse, Pie)
+- Use images (static or animated)
+- NO 3D objects or complex video effects
 
 ## RESERVED NAMES (CRITICAL)
 
@@ -102,7 +95,6 @@ NEVER use these as variable names - they shadow imports:
 - Output ONLY code - no explanations, no questions
 - Response must start with "import" and end with "};"
 - If prompt is ambiguous, make a reasonable choice - do not ask for clarification
-
 `;
 
 const FOLLOW_UP_SYSTEM_PROMPT = `
@@ -141,7 +133,7 @@ If the user has made manual edits, preserve them unless explicitly asked to chan
 `;
 
 // Schema for follow-up edit responses
-// Note: Using a flat object schema because OpenAI doesn't support discriminated unions
+// Note: Using a flat object schema because some models don't support discriminated unions
 const FollowUpResponseSchema = z.object({
   type: z
     .enum(["edit", "full"])
@@ -165,11 +157,11 @@ const FollowUpResponseSchema = z.object({
         new_string: z.string().describe("The replacement string"),
       })
     )
-    .optional()
+    .nullable()
     .describe("Required when type is 'edit': array of search-replace operations"),
   code: z
     .string()
-    .optional()
+    .nullable()
     .describe(
       "Required when type is 'full': the complete replacement code starting with imports"
     ),
@@ -223,7 +215,7 @@ function applyEdits(
       return {
         success: false,
         result: code,
-        error: `Edit ${i + 1} failed: Found ${matches} matches. The edit target is ambiguous.`,
+        error: `Edit ${i + 1} failed: Found ${matches} matches.The edit target is ambiguous.`,
         failedEdit: edit,
       };
     }
@@ -277,6 +269,8 @@ interface GenerateRequest {
   previouslyUsedSkills?: string[];
   /** Base64 image data URLs for visual context */
   frameImages?: string[];
+  /** Manually selected skills from the UI */
+  selectedSkills?: SkillName[];
 }
 
 interface GenerateResponse {
@@ -293,7 +287,7 @@ interface GenerateResponse {
 export async function POST(req: Request) {
   const {
     prompt,
-    model = "gpt-5.2",
+    model: requestedModel = "gemini-2.5-flash",
     currentCode,
     conversationHistory = [],
     isFollowUp = false,
@@ -301,70 +295,35 @@ export async function POST(req: Request) {
     errorCorrection,
     previouslyUsedSkills = [],
     frameImages,
+    selectedSkills = [],
   }: GenerateRequest = await req.json();
 
-  const apiKey = process.env.OPENAI_API_KEY;
+  const googleApiKey = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
 
-  if (!apiKey) {
+  console.log(`API Request - Model: ${requestedModel}, IsFollowUp: ${isFollowUp}, Prompt: ${prompt.substring(0, 50)}...`);
+
+  // Validate Gemini API key
+  if (!googleApiKey) {
     return new Response(
       JSON.stringify({
         error:
-          'The environment variable "OPENAI_API_KEY" is not set. Add it to your .env file and try again.',
+          'The environment variable "GOOGLE_GENERATIVE_AI_API_KEY" is not set. Add it to your .env file and try again.',
       }),
-      {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      },
+      { status: 400, headers: { "Content-Type": "application/json" } },
     );
   }
 
-  // Parse model ID - format can be "model-name" or "model-name:reasoning_effort"
-  const [modelName, reasoningEffort] = model.split(":");
+  // Initialize Gemini model
+  const model: LanguageModel = google(requestedModel);
 
-  const openai = createOpenAI({ apiKey });
 
-  // Validate the prompt first (skip for follow-ups with existing code)
-  if (!isFollowUp) {
-    try {
-      const validationResult = await generateObject({
-        model: openai("gpt-5.2"),
-        system: VALIDATION_PROMPT,
-        prompt: `User prompt: "${prompt}"`,
-        schema: z.object({ valid: z.boolean() }),
-      });
+  // Use manually selected skills from the UI
+  const detectedSkills: SkillName[] = selectedSkills;
 
-      if (!validationResult.object.valid) {
-        return new Response(
-          JSON.stringify({
-            error:
-              "No valid motion graphics prompt. Please describe an animation or visual content you'd like to create.",
-            type: "validation",
-          }),
-          { status: 400, headers: { "Content-Type": "application/json" } },
-        );
-      }
-    } catch (validationError) {
-      // On validation error, allow through rather than blocking
-      console.error("Validation error:", validationError);
-    }
-  }
-
-  // Detect which skills apply to this prompt
-  let detectedSkills: SkillName[] = [];
-  try {
-    const skillResult = await generateObject({
-      model: openai("gpt-5.2"),
-      system: SKILL_DETECTION_PROMPT,
-      prompt: `User prompt: "${prompt}"`,
-      schema: z.object({
-        skills: z.array(z.enum(SKILL_NAMES)),
-      }),
-    });
-    detectedSkills = skillResult.object.skills;
-    console.log("Detected skills:", detectedSkills);
-  } catch (skillError) {
-    console.error("Skill detection error:", skillError);
-  }
+  console.log(
+    `Using ${detectedSkills.length} manually selected skill(s): `,
+    detectedSkills.length > 0 ? detectedSkills.join(", ") : "none"
+  );
 
   // Filter out skills that were already used in the conversation to avoid redundant context
   const newSkills = detectedSkills.filter(
@@ -372,7 +331,7 @@ export async function POST(req: Request) {
   );
   if (previouslyUsedSkills.length > 0 && newSkills.length < detectedSkills.length) {
     console.log(
-      `Skipping ${detectedSkills.length - newSkills.length} previously used skills:`,
+      `Skipping ${detectedSkills.length - newSkills.length} previously used skills: `,
       detectedSkills.filter((s) => previouslyUsedSkills.includes(s)),
     );
   }
@@ -380,7 +339,7 @@ export async function POST(req: Request) {
   // Load skill-specific content only for NEW skills (previously used skills are already in context)
   const skillContent = getCombinedSkillContent(newSkills as SkillName[]);
   const enhancedSystemPrompt = skillContent
-    ? `${SYSTEM_PROMPT}\n\n## SKILL-SPECIFIC GUIDANCE\n${skillContent}`
+    ? `${SYSTEM_PROMPT} \n\n## SKILL - SPECIFIC GUIDANCE\n${skillContent} `
     : SYSTEM_PROMPT;
 
   // FOLLOW-UP MODE: Use non-streaming generateObject for faster edits
@@ -398,7 +357,7 @@ export async function POST(req: Request) {
                 m.attachedImages && m.attachedImages.length > 0
                   ? ` [with ${m.attachedImages.length} attached image${m.attachedImages.length > 1 ? "s" : ""}]`
                   : "";
-              return `${m.role.toUpperCase()}: ${m.content}${imageNote}`;
+              return `${m.role.toUpperCase()}: ${m.content}${imageNote} `;
             })
             .join("\n");
       }
@@ -413,8 +372,8 @@ export async function POST(req: Request) {
         const failedEditInfo = errorCorrection.failedEdit
           ? `
 
-The previous edit attempt failed. Here's what was tried:
-- Description: ${errorCorrection.failedEdit.description}
+The previous edit attempt failed.Here's what was tried:
+  - Description: ${errorCorrection.failedEdit.description}
 - Tried to find: \`${errorCorrection.failedEdit.old_string}\`
 - Wanted to replace with: \`${errorCorrection.failedEdit.new_string}\`
 
@@ -471,7 +430,7 @@ Analyze the request and decide: use targeted edits (type: "edit") for small chan
         "Follow-up edit with prompt:",
         prompt,
         "model:",
-        modelName,
+        requestedModel,
         "skills:",
         detectedSkills.length > 0 ? detectedSkills.join(", ") : "general",
         frameImages && frameImages.length > 0 ? `(with ${frameImages.length} image(s))` : ""
@@ -490,14 +449,14 @@ Analyze the request and decide: use targeted edits (type: "edit") for small chan
         role: "user";
         content: Array<{ type: "text"; text: string } | { type: "image"; image: string }>;
       }> = [
-        {
-          role: "user" as const,
-          content: editMessageContent,
-        },
-      ];
+          {
+            role: "user" as const,
+            content: editMessageContent,
+          },
+        ];
 
       const editResult = await generateObject({
-        model: openai(modelName),
+        model,
         system: FOLLOW_UP_SYSTEM_PROMPT,
         messages: editMessages,
         schema: FollowUpResponseSchema,
@@ -551,7 +510,7 @@ Analyze the request and decide: use targeted edits (type: "edit") for small chan
           skills: detectedSkills,
           editType,
           edits: appliedEdits,
-          model: modelName,
+          model: requestedModel,
         },
       };
 
@@ -563,7 +522,7 @@ Analyze the request and decide: use targeted edits (type: "edit") for small chan
       console.error("Error in follow-up edit:", error);
       return new Response(
         JSON.stringify({
-          error: "Something went wrong while processing the edit request.",
+          error: error instanceof Error ? error.message : "Something went wrong while processing the edit request.",
         }),
         { status: 500, headers: { "Content-Type": "application/json" } }
       );
@@ -591,79 +550,90 @@ Analyze the request and decide: use targeted edits (type: "edit") for small chan
       role: "user";
       content: Array<{ type: "text"; text: string } | { type: "image"; image: string }>;
     }> = [
-      {
-        role: "user" as const,
-        content: initialMessageContent,
-      },
-    ];
+        {
+          role: "user" as const,
+          content: initialMessageContent,
+        },
+      ];
 
     const result = streamText({
-      model: openai(modelName),
+      model,
       system: enhancedSystemPrompt,
       messages: initialMessages,
-      ...(reasoningEffort && {
-        providerOptions: {
-          openai: {
-            reasoningEffort: reasoningEffort,
-          },
-        },
-      }),
     });
 
-    console.log(
-      "Generating React component with prompt:",
-      prompt,
-      "model:",
-      modelName,
-      "skills:",
-      detectedSkills.length > 0 ? detectedSkills.join(", ") : "general",
-      reasoningEffort ? `reasoning_effort: ${reasoningEffort}` : "",
-      hasImages ? `(with ${frameImages.length} image(s))` : ""
-    );
-
-    // Get the original stream response
-    const originalResponse = result.toUIMessageStreamResponse({
-      sendReasoning: true,
-    });
-
-    // Create metadata event to prepend
-    const metadataEvent = `data: ${JSON.stringify({
-      type: "metadata",
-      skills: detectedSkills,
-    })}\n\n`;
-
-    // Create a new stream that prepends metadata before the LLM stream
-    const originalBody = originalResponse.body;
-    if (!originalBody) {
-      return originalResponse;
-    }
-
-    const reader = originalBody.getReader();
-    const encoder = new TextEncoder();
-
-    const stream = new ReadableStream({
+    return new Response(new ReadableStream({
       async start(controller) {
-        // Send metadata event first
-        controller.enqueue(encoder.encode(metadataEvent));
+        const encoder = new TextEncoder();
 
-        // Then pipe through the original stream
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          controller.enqueue(value);
+        // 1. Send metadata event first
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+          type: "metadata",
+          skills: detectedSkills
+        })}\n\n`));
+
+        let hasReasoningStarted = false;
+        let hasTextStarted = false;
+
+        // 2. Stream chunks
+        try {
+          for await (const part of result.fullStream) {
+            if (part.type === 'reasoning-delta') {
+              if (!hasReasoningStarted) {
+                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "reasoning-start" })}\n\n`));
+                hasReasoningStarted = true;
+              }
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+                type: "reasoning",
+                delta: part.text
+              })}\n\n`));
+            } else if (part.type === 'text-delta') {
+              if (!hasTextStarted) {
+                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: "text-start" })}\n\n`));
+                hasTextStarted = true;
+              }
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+                type: "text-delta",
+                delta: part.text
+              })}\n\n`));
+            } else if (part.type === 'error') {
+              const errorObj = (part as any).error;
+              console.error("Stream error event received:", errorObj);
+              const errorMessage = errorObj instanceof Error
+                ? errorObj.message
+                : typeof errorObj === 'string'
+                  ? errorObj
+                  : JSON.stringify(errorObj);
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+                type: "error",
+                error: errorMessage
+              })}\n\n`));
+            }
+          }
+        } catch (err) {
+          console.error("Streaming error:", err);
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+            type: "error",
+            error: err instanceof Error ? err.message : "Streaming failed"
+          })}\n\n`));
         }
-        controller.close();
-      },
-    });
 
-    return new Response(stream, {
-      headers: originalResponse.headers,
+        // 3. Close stream
+        controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+        controller.close();
+      }
+    }), {
+      headers: {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        "Connection": "keep-alive",
+      },
     });
   } catch (error) {
     console.error("Error generating code:", error);
     return new Response(
       JSON.stringify({
-        error: "Something went wrong while trying to reach OpenAI APIs.",
+        error: "Something went wrong while trying to reach Groq APIs.",
       }),
       { status: 500, headers: { "Content-Type": "application/json" } }
     );

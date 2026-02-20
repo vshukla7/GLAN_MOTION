@@ -20,7 +20,7 @@ export function useConversationState() {
 
   const addUserMessage = useCallback((content: string, attachedImages?: string[]) => {
     const message: ConversationMessage = {
-      id: `user-${Date.now()}`,
+      id: `user-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
       role: "user",
       content,
       timestamp: Date.now(),
@@ -36,7 +36,7 @@ export function useConversationState() {
   const addAssistantMessage = useCallback(
     (content: string, codeSnapshot: string, metadata?: AssistantMetadata) => {
       const message: ConversationMessage = {
-        id: `assistant-${Date.now()}`,
+        id: `assistant-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
         role: "assistant",
         content,
         timestamp: Date.now(),
@@ -62,7 +62,7 @@ export function useConversationState() {
       failedEdit?: EditOperation,
     ) => {
       const message: ConversationMessage = {
-        id: `error-${Date.now()}`,
+        id: `error-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
         role: "error",
         content,
         timestamp: Date.now(),

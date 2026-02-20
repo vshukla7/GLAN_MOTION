@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect, type ComponentType } from "react";
-import { ArrowUp, Camera, X, Paperclip } from "lucide-react";
+import { ArrowUp, Camera, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
+import { cn } from "@/lib/utils";
 import {
   Select,
   SelectContent,
@@ -14,6 +15,8 @@ import {
 import { type ModelId, MODELS } from "@/types/generation";
 import { captureFrame } from "@/helpers/capture-frame";
 import { useImageAttachments } from "@/hooks/useImageAttachments";
+import { SkillSelector } from "./SkillSelector";
+import { type SkillName } from "@/skills";
 
 interface ChatInputProps {
   prompt: string;
@@ -21,7 +24,9 @@ interface ChatInputProps {
   model: ModelId;
   onModelChange: (model: ModelId) => void;
   isLoading: boolean;
-  onSubmit: (attachedImages?: string[]) => void;
+  onSubmit: (attachedImages?: string[], selectedSkills?: SkillName[]) => void;
+  selectedSkills: SkillName[];
+  onSkillsChange: (skills: SkillName[]) => void;
   // Frame capture props
   Component?: ComponentType | null;
   fps?: number;
@@ -36,6 +41,8 @@ export function ChatInput({
   onModelChange,
   isLoading,
   onSubmit,
+  selectedSkills,
+  onSkillsChange,
   Component,
   fps = 30,
   durationInFrames = 150,
@@ -45,11 +52,9 @@ export function ChatInput({
   const {
     attachedImages,
     isDragging,
-    fileInputRef,
     addImages,
     removeImage,
     clearImages,
-    handleFileSelect,
     handlePaste,
     handleDragOver,
     handleDragLeave,
@@ -70,7 +75,10 @@ export function ChatInput({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!prompt.trim()) return;
-    onSubmit(attachedImages.length > 0 ? attachedImages : undefined);
+    onSubmit(
+      attachedImages.length > 0 ? attachedImages : undefined,
+      selectedSkills.length > 0 ? selectedSkills : undefined
+    );
     clearImages();
   };
 
@@ -104,12 +112,13 @@ export function ChatInput({
   const canCapture = Component && !isLoading && !isCapturing && canAddMore;
 
   return (
-    <div className="px-4 pt-4 pb-4">
+    <div className="px-3 pt-2 pb-3">
       <form onSubmit={handleSubmit}>
         <div
-          className={`bg-background-elevated rounded-xl border p-3 transition-colors ${
-            isDragging ? "border-blue-500 bg-blue-500/10" : "border-border"
-          }`}
+          className={cn(
+            "bg-background-elevated/40 backdrop-blur-2xl rounded-2xl border p-4 transition-all duration-300 shadow-2xl",
+            isDragging ? "border-primary bg-primary/10 ring-4 ring-primary/20" : "border-border/40 hover:border-border/80"
+          )}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
@@ -164,54 +173,43 @@ export function ChatInput({
                 ? "Drop images here..."
                 : "Tune your animation... (paste or drop images)"
             }
-            className="w-full bg-transparent text-foreground placeholder:text-muted-foreground-dim focus:outline-none resize-none text-sm min-h-[36px] max-h-[120px]"
+            className="w-full bg-transparent text-foreground placeholder:text-muted-foreground-dim focus:outline-none resize-none text-sm min-h-[40px] max-h-[150px]"
             style={{ fieldSizing: "content" } as React.CSSProperties}
             disabled={isLoading}
           />
-          {/* Hidden file input */}
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            multiple
-            onChange={handleFileSelect}
-            className="hidden"
-          />
+
 
           <div className="flex justify-between items-center mt-2 pt-2 border-t border-border/50">
-            <Select
-              value={model}
-              onValueChange={(value) => onModelChange(value as ModelId)}
-              disabled={isLoading}
-            >
-              <SelectTrigger className="max-w-[140px] bg-transparent border-none text-muted-foreground hover:text-foreground transition-colors text-xs h-7 px-2 truncate">
-                <SelectValue className="truncate" />
-              </SelectTrigger>
-              <SelectContent className="bg-background-elevated border-border">
-                {MODELS.map((m) => (
-                  <SelectItem
-                    key={m.id}
-                    value={m.id}
-                    className="text-foreground focus:bg-secondary focus:text-foreground text-xs"
-                  >
-                    {m.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="flex items-center gap-2">
+              <Select
+                value={model}
+                onValueChange={(value) => onModelChange(value as ModelId)}
+                disabled={isLoading}
+              >
+                <SelectTrigger className="max-w-[140px] bg-transparent border-none text-muted-foreground hover:text-foreground transition-colors text-xs h-7 px-2 truncate">
+                  <SelectValue className="truncate" />
+                </SelectTrigger>
+                <SelectContent className="bg-background-elevated border-border">
+                  {MODELS.map((m) => (
+                    <SelectItem
+                      key={m.id}
+                      value={m.id}
+                      className="text-foreground focus:bg-secondary focus:text-foreground text-xs"
+                    >
+                      {m.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <SkillSelector
+                selectedSkills={selectedSkills}
+                onSkillsChange={onSkillsChange}
+                disabled={isLoading}
+              />
+            </div>
 
             <div className="flex items-center gap-1">
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isLoading || !canAddMore}
-                className="text-muted-foreground hover:text-foreground h-7 w-7"
-                title="Attach images"
-              >
-                <Paperclip className="w-4 h-4" />
-              </Button>
+
 
               <Button
                 type="button"
@@ -223,7 +221,6 @@ export function ChatInput({
                 title="Use current frame of Preview as image in chat"
               >
                 <Camera className="w-3.5 h-3.5 mr-1" />
-                Use Frame
               </Button>
 
               <Button
@@ -238,7 +235,7 @@ export function ChatInput({
             </div>
           </div>
         </div>
-      </form>
-    </div>
+      </form >
+    </div >
   );
 }
