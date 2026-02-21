@@ -1,16 +1,12 @@
 {
-  "name": "template-prompt-to-motion-graphics",
+  "name": "glan-motion",
   "version": "4.0.379",
-  "description": "SaaS template for AI-powered code generation with Remotion",
+  "description": "AI-powered motion graphics generator",
   "private": true,
-  "repository": {
-    "url": "https://github.com/remotion-dev/remotion/tree/main/packages/template-prompt-to-motion-graphics"
-  },
-  "homepage": "https://www.remotion.dev",
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
+    "dev": "node init && next dev",
+    "build": "node init && next build",
+    "start": "node init && next start",
     "lint": "eslint .",
     "remotion": "remotion studio",
     "render": "remotion render",
